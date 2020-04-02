@@ -6,16 +6,26 @@ using System.Globalization;
 
 namespace DatabaseCreator
 {
-    
-
     /// <summary>
     /// USAGE: 
     /// - edit "databaseValues.csv" and place it in the same folder as the exe-file
     /// - add images
     /// - run "DatabseCreator.exe" and DB File will be created
+    /// The Database consists of 3 Tables:
+    /// TypeDescriptionTable: This is the main Table. Contains Data of the Whistky Entry like Name, Distillery, County and 
+    /// the keys to the corresponding entries to other tables, if suitaable.
+    /// PictureTable: If there is a picture of the Whisky, the relevant information is stored here
+    /// BarcodeTable: If there is a barcode available for this whisky, the relevant information is stored here
     /// </summary>
     class Program
     {
+        // Database specific information. Modify these values to change the DB Filename and DB-Version
+        const string DatabaseFilename = "whiskyDataDB.db";
+        const int VersionNo = 3;
+        // --------------------------------------
+
+
+
         private static String typeDescriptionTableCommand = "CREATE TABLE `TypeDescriptionTable` (" +
     "`item_id`	INTEGER PRIMARY KEY AUTOINCREMENT," +
     "`name`	TEXT NOT NULL," +
@@ -47,7 +57,7 @@ namespace DatabaseCreator
 ")";
 
         /// <summary>
-        /// The Object, which describes the Data, which shall be stored in the Database. Correspoonds to the Database-Columns.
+        /// The Object, which describes the Data, which shall be stored in the Database. The memners of this Object correspond to the Database-Columns.
         /// </summary>
         struct WhiskyObjectEntry
         {
@@ -57,10 +67,22 @@ namespace DatabaseCreator
             public String country;
             public String description;
             public String barcode;
-            public int age;
+            /// <summary>
+            /// Age of the Item
+            /// </summary>
+            public int ageInYears;
+            /// <summary>
+            /// volume percent
+            /// </summary>
             public float vol;
+            /// <summary>
+            /// Timestamp of the creation of this entry in Format YYYY-MM-DD HH:MM UTC
+            /// </summary>
             public String creationDate;
-            public String pictureData;
+            /// <summary>
+            /// Picture of the item, Base64 encoded
+            /// </summary>
+            public String pictureDataInBase64;
         }
 
 
@@ -96,14 +118,14 @@ namespace DatabaseCreator
                     helperEntry.country = values[3];
                     helperEntry.description = values[4];
                     helperEntry.barcode = values[5];
-                    helperEntry.age = Int32.Parse(values[6]);
+                    helperEntry.ageInYears = Int32.Parse(values[6]);
                     helperEntry.vol = float.Parse(values[7], CultureInfo.CurrentCulture);
 
                     // Timestamp
                     DateTime currentTime = DateTime.Now.ToUniversalTime();
                     helperEntry.creationDate = currentTime.Year + "-" + currentTime.Month + "-" + currentTime.Day + " " + currentTime.Hour + ":" + currentTime.Minute + " UTC"; // values[8];
                     // convert image to Base64
-                    helperEntry.pictureData = ImageOperations.ImageToBase64(values[9]);
+                    helperEntry.pictureDataInBase64 = ImageOperations.ImageToBase64(values[9]);
                     entries.Add(helperEntry);
                 }
             }      
@@ -117,11 +139,9 @@ namespace DatabaseCreator
         /// </summary>
         /// <param name="entries">the entries, which shall be stored. The format of the entries correspond to the Object-Type of the List entries</param>
         static void createDatabaseTable(List<WhiskyObjectEntry> entries)
-        {
-            // Database specific information
-            String databaseName = "whiskyDataDB.db";
-            int versionNo = 3;
-            // --------------------------------------
+        {            
+            String databaseName = DatabaseFilename;
+            int versionNo = VersionNo;
 
             int itemId = 0;
             String getRow = "";
@@ -148,7 +168,7 @@ namespace DatabaseCreator
                     entry.distillery + "', '" +
                     entry.country + "', '" +
                     entry.description + "', '" +
-                    entry.age + "', '" +
+                    entry.ageInYears + "', '" +
                     entry.vol.ToString("####00.0") + "', '" +
                     0 + "', '" + // pictureId, not used
                     entry.creationDate + "')";
@@ -166,9 +186,9 @@ namespace DatabaseCreator
                 }
 
                 // create entry in PictureTable, if picture available
-                if (entry.pictureData != null && entry.pictureData != "")
+                if (entry.pictureDataInBase64 != null && entry.pictureDataInBase64 != "")
                 {
-                    sqlFill = "insert into PictureTable (item_id, pictureData, isPicturePrivate, pictureRating) values ('" + itemId + "', '" + entry.pictureData + "', '0', '0')";
+                    sqlFill = "insert into PictureTable (item_id, pictureData, isPicturePrivate, pictureRating) values ('" + itemId + "', '" + entry.pictureDataInBase64 + "', '0', '0')";
                     command = new SQLiteCommand(sqlFill, m_dbConnection);
                     command.ExecuteNonQuery();
                 }
@@ -184,9 +204,5 @@ namespace DatabaseCreator
 
             m_dbConnection.Close();
         }
-    }
-
-
-
-    
+    }    
 }
